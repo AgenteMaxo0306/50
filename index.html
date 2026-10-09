@@ -3,192 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Big Data + RA - Visor de Imagen 3D</title>
-    <!-- Tailwind CSS -->
+    <title>Big Data + RA - Realidad Aumentada por Marcador</title>
+    <!-- A-Frame y AR.js -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <!-- Tailwind para la interfaz -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- Three.js para renderizado 3D -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #030712; font-family: system-ui, sans-serif; }
-        canvas { display: block; }
+        body { margin: 0; overflow: hidden; font-family: system-ui, sans-serif; }
     </style>
 </head>
-<body class="text-white h-screen w-screen flex flex-col justify-between select-none">
+<body class="bg-black text-white select-none">
 
-    <!-- Vista de la Cámara -->
-    <div id="camera-container" class="absolute inset-0 z-0 overflow-hidden bg-black flex items-center justify-center">
-        <video id="webcam" autoplay playsinline muted class="absolute min-w-full min-h-full object-cover transform -scale-x-100"></video>
-        <!-- Overlay de Guía -->
-        <div id="target-overlay" class="absolute inset-8 border-2 border-dashed border-cyan-500/40 rounded-2xl pointer-events-none flex flex-col items-center justify-between p-6 bg-cyan-950/10 backdrop-blur-[1px]">
-            <div class="bg-black/80 px-4 py-1.5 rounded-full border border-cyan-500/40 text-xs text-cyan-300 tracking-wider uppercase flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-                Enfoca la escena con tu cámara
+    <!-- Pantalla de instrucciones inicial -->
+    <div id="ui-screen" class="absolute inset-x-0 bottom-6 z-50 flex flex-col items-center pointer-events-none px-4">
+        <div class="bg-gray-900/90 border border-cyan-500/40 backdrop-blur-md px-6 py-3 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.3)] pointer-events-auto text-center max-w-sm">
+            <h1 class="text-xs font-bold text-cyan-300 uppercase tracking-wider mb-1">Escáner AR Activo</h1>
+            <p class="text-[11px] text-gray-300 mb-3">Apunta con la cámara de tu celular hacia el marcador <strong>Hiro</strong> (o tu patrón configurado) para visualizar la maqueta 3D.</p>
+            <div class="flex gap-2 justify-center">
+                <a href="https://ar-js-org.github.io/AR.js/three.js/examples/marker-training/examples/generator.html" target="_blank" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-[10px] font-medium transition-all shadow">
+                    Generar / Ver Marcador
+                </a>
             </div>
-            <div class="text-[10px] text-cyan-400/70 uppercase tracking-widest bg-black/60 px-3 py-1 rounded-md">Proyectando Imagen en 3D</div>
         </div>
     </div>
 
-    <!-- Contenedor del Canvas 3D -->
-    <div id="canvas-3d-container" class="absolute inset-0 z-10 pointer-events-none"></div>
-
-    <!-- Interfaz Superior -->
-    <header class="relative z-20 p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
-        <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg bg-cyan-600/30 border border-cyan-400 flex items-center justify-center text-cyan-300 font-bold text-sm shadow-[0_0_15px_rgba(6,182,212,0.5)]">RA</div>
-            <div>
-                <h1 class="text-sm font-bold tracking-wide text-cyan-200">BIG DATA + RA</h1>
-                <p class="text-[10px] text-cyan-400/70">Visor de Maqueta 3D</p>
-            </div>
-        </div>
-        <div id="status-badge" class="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-medium flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-            Iniciando cámara...
-        </div>
-    </header>
-
-    <!-- Pantalla de Inicio / Permisos -->
-    <div id="permission-screen" class="absolute inset-0 z-50 bg-gray-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
-        <div class="max-w-md w-full bg-gray-900 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_30px_rgba(6,182,212,0.15)]">
-            <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-500/40 rounded-2xl mx-auto flex items-center justify-center text-cyan-400 text-2xl mb-4 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-                📸
-            </div>
-            <h2 class="text-lg font-bold text-white mb-2">Activar Visor 3D con Cámara</h2>
-            <p class="text-xs text-gray-400 mb-6">Permite el acceso a tu cámara para proyectar y visualizar la imagen de la maqueta interactiva en un entorno 3D sobre tu pantalla.</p>
-            <button id="start-btn" class="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium rounded-xl text-sm transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] cursor-pointer">
-                Iniciar Cámara y Ver Imagen 3D
-            </button>
-            <p id="error-msg" class="text-xs text-red-400 mt-3 hidden"></p>
-        </div>
-    </div>
-
-    <!-- Interfaz Inferior -->
-    <footer class="relative z-20 p-4 flex flex-col gap-3 bg-gradient-to-t from-black/90 to-transparent">
-        <div class="flex gap-2 justify-center">
-            <button onclick="toggleRotation()" class="px-4 py-2 bg-gray-900/80 hover:bg-gray-800 border border-cyan-500/40 rounded-xl text-xs text-cyan-300 font-medium transition-all backdrop-blur-sm cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.2)]">
-                🔄 Pausar / Rotar Imagen 3D
-            </button>
-            <button onclick="resetView()" class="px-4 py-2 bg-gray-900/80 hover:bg-gray-800 border border-cyan-500/40 rounded-xl text-xs text-cyan-300 font-medium transition-all backdrop-blur-sm cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.2)]">
-                🎯 Centrar Vista
-            </button>
-        </div>
-        <div class="text-center text-[10px] text-gray-400">
-            Un mundo de datos, infinitas posibilidades.
-        </div>
-    </footer>
-
-    <!-- Script para Cargar la Imagen en 3D -->
-    <script>
-        const video = document.getElementById('webcam');
-        const permissionScreen = document.getElementById('permission-screen');
-        const startBtn = document.getElementById('start-btn');
-        const errorMsg = document.getElementById('error-msg');
-        const statusBadge = document.getElementById('status-badge');
-
-        let scene, camera, renderer, imageMesh;
-        let isRotating = true;
-
-        startBtn.addEventListener('click', async () => {
-            try {
-                errorMsg.classList.add('hidden');
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: false
-                });
-                video.srcObject = stream;
-                
-                permissionScreen.classList.add('opacity-0', 'pointer-events-none');
-                setTimeout(() => permissionScreen.style.display = 'none', 300);
-
-                statusBadge.className = "px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-medium flex items-center gap-1.5";
-                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Imagen 3D Activa';
-
-                initImage3D();
-            } catch (err) {
-                console.error("Error al acceder a la cámara:", err);
-                errorMsg.textContent = "No se pudo acceder a la cámara. Asegúrate de usar HTTPS o Localhost.";
-                errorMsg.classList.remove('hidden');
-            }
-        });
-
-        function initImage3D() {
-            const container = document.getElementById('canvas-3d-container');
-
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 0, 5);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(renderer.domElement);
-
-            // Iluminación
-            const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
-            scene.add(ambientLight);
-
-            // Cargar tu imagen exacta como textura 3D
-            const textureLoader = new THREE.TextureLoader();
-            // Reemplaza esta URL con el enlace directo o archivo de tu imagen si lo subes a tu repositorio
-            const imageUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop"; // Placeholder temporal, puedes usar tu imagen local o URL
+    <!-- Escena de Realidad Aumentada (AR.js + A-Frame) -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;" vr-mode-ui="enabled: false">
+        
+        <!-- Marcador de seguimiento (Por defecto usa el marcador 'hiro' clásico de AR.js, ideal para pruebas rápidas) -->
+        <a-marker preset="hiro">
             
-            // Usamos la imagen que adjuntaste si está en base64 o la cargamos por archivo local
-            // Como estamos en web, lo ideal es guardar tu imagen en la misma carpeta como 'maqueta.jpg'
-            const localImageSrc = "watermarked_img_17557736977064457583.jpg"; // O pon el nombre de tu archivo de imagen local
+            <!-- Contenido 3D que aparecerá ENCIMA del marcador al enfocarlo -->
+            <a-entity position="0 0.5 0" rotation="0 0 0">
+                
+                <!-- Base de servidores / Maqueta 3D geométrica simulada -->
+                <a-box position="0 0.2 0" depth="1.5" height="0.4" width="1.5" color="#0f172a" material="metalness: 0.8; roughness: 0.2; emissive: #0044aa; emissiveIntensity: 0.3;"></a-box>
+                
+                <!-- Servidores centrales -->
+                <a-box position="-0.4 0.6 -0.4" depth="0.3" height="0.8" width="0.3" color="#00ffff"></a-box>
+                <a-box position="0.4 0.6 -0.4" depth="0.3" height="0.8" width="0.3" color="#00ffff"></a-box>
+                <a-box position="-0.4 0.6 0.4" depth="0.3" height="0.8" width="0.3" color="#3b82f6"></a-box>
+                <a-box position="0.4 0.6 0.4" depth="0.3" height="0.8" width="0.3" color="#3b82f6"></a-box>
 
-            textureLoader.load(
-                localImageSrc,
-                (texture) => {
-                    const geometry = new THREE.PlaneGeometry(3.6, 2.4); // Proporción de la imagen
-                    const material = new THREE.MeshBasicMaterial({ 
-                        map: texture, 
-                        side: THREE.DoubleSide,
-                        transparent: true
-                    });
-                    imageMesh = new THREE.Mesh(geometry, material);
-                    scene.add(imageMesh);
-                },
-                undefined,
-                (err) => {
-                    console.warn("No se pudo cargar la imagen local, cargando plano alternativo texturizado de respaldo.");
-                    // Fallback si la imagen local no se encuentra en el mismo directorio
-                    const geometry = new THREE.PlaneGeometry(3.6, 2.4);
-                    const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
-                    imageMesh = new THREE.Mesh(geometry, material);
-                    scene.add(imageMesh);
-                }
-            );
+                <!-- Núcleo de Esfera Central flotante (Big Data) -->
+                <a-sphere position="0 1.2 0" radius="0.45" color="#00ffff" material="wireframe: true; emissive: #00ffff; emissiveIntensity: 0.8;" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear;"></a-sphere>
 
-            window.addEventListener('resize', onWindowResize);
-            animate();
-        }
+                <!-- Anillo orbital animado -->
+                <a-torus position="0 1.2 0" radius="0.7" radius-tubular="0.015" rotation="65 0 0" color="#3b82f6" material="emissive: #3b82f6; emissiveIntensity: 0.8;" animation="property: rotation; to: 65 360 0; loop: true; dur: 5000; easing: linear;"></a-torus>
 
-        function animate() {
-            requestAnimationFrame(animate);
+                <!-- Texto flotante en 3D -->
+                <a-text value="BIG DATA + RA" position="-0.8 1.9 0" scale="0.6 0.6 0.6" color="#00ffff"></a-text>
 
-            if (isRotating && imageMesh) {
-                imageMesh.rotation.y += 0.005;
-                imageMesh.rotation.x = Math.sin(Date.now() * 0.001) * 0.1; // Sutil efecto flotante tridimensional
-            }
+            </a-entity>
+        </a-marker>
 
-            renderer.render(scene, camera);
-        }
+        <!-- Cámara de la experiencia AR -->
+        <a-entity camera></a-entity>
+    </a-scene>
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function toggleRotation() {
-            isRotating = !isRotating;
-        }
-
-        function resetView() {
-            if (imageMesh) {
-                imageMesh.rotation.set(0, 0, 0);
-                isRotating = true;
-            }
-        }
-    </script>
 </body>
 </html>
