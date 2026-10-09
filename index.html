@@ -3,51 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Big Data + RA - Visor Web</title>
+    <title>Big Data + RA - Visor 3D</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Three.js para el modelo 3D -->
+    <!-- Three.js para gráficos 3D -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: system-ui, sans-serif; }
-        #webcam { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 0; }
-        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
+        * { box-sizing: border-box; }
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100%; 
+            overflow: hidden; 
+            background: #000; 
+            font-family: system-ui, sans-serif; 
+        }
+        /* Contenedor absoluto para centrar la cámara perfectamente */
+        #camera-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            z-index: 0;
+            background: #000;
+        }
+        #webcam {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+        }
+        #canvas-container { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            z-index: 1; 
+            pointer-events: none; 
+        }
     </style>
 </head>
 <body>
 
-    <!-- Video de la cámara a pantalla completa -->
-    <video id="webcam" autoplay playsinline muted></video>
+    <!-- Video de la cámara perfectamente centrado a pantalla completa -->
+    <div id="camera-wrapper">
+        <video id="webcam" autoplay playsinline muted></video>
+    </div>
 
     <!-- Lienzo 3D superpuesto -->
     <div id="canvas-container"></div>
 
-    <!-- Pantalla de inicio para otorgar permisos de cámara obligatorios -->
-    <div id="permission-screen" class="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-        <div class="max-w-xs w-full bg-slate-900 border border-cyan-500/40 rounded-2xl p-6 shadow-2xl">
-            <div class="w-14 h-14 bg-cyan-500/10 border border-cyan-500/30 rounded-xl mx-auto flex items-center justify-center text-cyan-400 text-2xl mb-4">
+    <!-- Pantalla de Permisos Inicial -->
+    <div id="permission-screen" style="position: fixed; inset: 0; z-index: 50; background: #030712; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center;">
+        <div style="max-width: 320px; width: 100%; background: #0f172a; border: 1px solid rgba(6,182,212,0.4); border-radius: 16px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
+            <div style="width: 56px; height: 56px; background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); border-radius: 12px; margin: 0 auto 16px auto; display: flex; align-items: center; justify-content: center; font-size: 24px;">
                 📷
             </div>
-            <h2 class="text-white font-bold text-base mb-2">Activar Cámara</h2>
-            <p class="text-slate-400 text-xs mb-6">Presiona el botón para iniciar la experiencia interactiva de Realidad Aumentada.</p>
-            <button id="start-btn" class="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-xl text-sm shadow-lg transition-all cursor-pointer">
+            <h2 style="color: white; font-weight: bold; font-size: 16px; margin-bottom: 8px;">Activar Cámara</h2>
+            <p style="color: #94a3b8; font-size: 12px; margin-bottom: 24px;">Presiona el botón para iniciar la experiencia de Realidad Aumentada.</p>
+            <button id="start-btn" type="button" style="width: 100%; padding: 12px; background: #0284c7; color: white; font-weight: 600; border-radius: 12px; font-size: 14px; border: none; cursor: pointer;">
                 Iniciar Cámara
             </button>
-            <p id="error-msg" class="text-red-400 text-xs mt-3 hidden"></p>
+            <p id="error-msg" style="color: #f87171; font-size: 12px; margin-top: 12px; display: none;"></p>
         </div>
     </div>
 
-    <!-- Controles flotantes inferiores -->
-    <div class="absolute bottom-6 left-0 right-0 z-20 flex justify-center gap-3 px-4">
-        <button onclick="toggleRotation()" class="px-4 py-2 bg-slate-900/80 hover:bg-slate-800 border border-cyan-500/40 rounded-xl text-xs text-cyan-300 font-medium backdrop-blur cursor-pointer">
-            🔄 Pausar / Girar
+    <!-- Controles flotantes inferiores (usando botones limpios sin enlaces) -->
+    <div style="position: fixed; bottom: 24px; left: 0; right: 0; z-index: 20; display: flex; justify-content: center; gap: 12px; padding: 0 16px;">
+        <button type="button" onclick="toggleRotation()" style="padding: 8px 16px; background: rgba(15,23,42,0.85); border: 1px solid rgba(6,182,212,0.4); border-radius: 12px; font-size: 12px; color: #22d3ee; backdrop-filter: blur(4px); cursor: pointer;">
+            🔄 Girar / Pausar
         </button>
-        <button onclick="resetView()" class="px-4 py-2 bg-slate-900/80 hover:bg-slate-800 border border-cyan-500/40 rounded-xl text-xs text-cyan-300 font-medium backdrop-blur cursor-pointer">
-            🎯 Centrar
+        <button type="button" onclick="resetView()" style="padding: 8px 16px; background: rgba(15,23,42,0.85); border: 1px solid rgba(6,182,212,0.4); border-radius: 12px; font-size: 12px; color: #22d3ee; backdrop-filter: blur(4px); cursor: pointer;">
+            🎯 Centrar Vista
         </button>
     </div>
 
-    <!-- Lógica de la aplicación -->
+    <!-- Script de lógica -->
     <script>
         const video = document.getElementById('webcam');
         const permissionScreen = document.getElementById('permission-screen');
@@ -59,25 +99,32 @@
 
         startBtn.addEventListener('click', async () => {
             try {
-                errorMsg.classList.add('hidden');
+                errorMsg.style.display = 'none';
                 
-                // Solicitar la cámara trasera del celular
+                // Forzar uso de la cámara trasera con resolución ideal para móviles
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+                    video: { 
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
                     audio: false
                 });
                 
                 video.srcObject = stream;
                 
-                // Ocultar pantalla de permisos
+                // Ocultar pantalla de permisos de forma segura
                 permissionScreen.style.opacity = '0';
-                setTimeout(() => permissionScreen.style.display = 'none', 300);
+                permissionScreen.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => {
+                    permissionScreen.style.display = 'none';
+                }, 300);
 
                 initThreeJS();
             } catch (err) {
                 console.error(err);
-                errorMsg.textContent = "No se pudo acceder a la cámara. Verifica los permisos o usa HTTPS / Localhost.";
-                errorMsg.classList.remove('hidden');
+                errorMsg.textContent = "No se pudo acceder a la cámara. Verifica los permisos o asegúrate de usar HTTPS / Localhost.";
+                errorMsg.style.display = 'block';
             }
         });
 
@@ -91,10 +138,10 @@
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             container.appendChild(renderer.domElement);
 
-            // Luz ambiental y direccional
+            // Iluminación
             const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
             scene.add(ambientLight);
 
@@ -102,17 +149,17 @@
             pointLight.position.set(0, 4, 2);
             scene.add(pointLight);
 
-            // Grupo principal de la maqueta 3D
+            // Grupo 3D de la Maqueta
             maquetaGroup = new THREE.Group();
             scene.add(maquetaGroup);
 
-            // 1. Plataforma base
+            // Base
             const baseGeo = new THREE.BoxGeometry(2.2, 0.2, 2.2);
             const baseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 });
             const baseMesh = new THREE.Mesh(baseGeo, baseMat);
             maquetaGroup.add(baseMesh);
 
-            // 2. Torres de servidores (Big Data)
+            // Torres de servidores
             const serverMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x0088ff, emissiveIntensity: 0.5 });
             for (let i = -0.6; i <= 0.6; i += 1.2) {
                 for (let j = -0.6; j <= 0.6; j += 1.2) {
@@ -123,7 +170,7 @@
                 }
             }
 
-            // 3. Esfera central holográfica
+            // Esfera central holográfica
             const sphereGeo = new THREE.SphereGeometry(0.5, 32, 32);
             const sphereMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.8, wireframe: true });
             const sphereMesh = new THREE.Mesh(sphereGeo, sphereMat);
