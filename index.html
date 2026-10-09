@@ -3,100 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Big Data + RA - Realidad Aumentada</title>
-    <!-- A-Frame y AR.js -->
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <title>Big Data + RA - Visor Web</title>
     <!-- Tailwind CSS -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js para el modelo 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #000;
-            font-family: system-ui, sans-serif;
-        }
-        /* Forzar que el lienzo y el video ocupen exactamente el 100% de la pantalla sin deformarse */
-        .a-canvas {
-            width: 100% !important;
-            height: 100% !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            z-index: 1 !important;
-        }
-        video {
-            object-fit: cover !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            z-index: 0 !important;
-        }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: system-ui, sans-serif; }
+        #webcam { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 0; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
     </style>
 </head>
-<body class="text-white select-none">
+<body>
 
-    <!-- Interfaz de Guía Superior e Inferior -->
-    <div class="absolute inset-0 z-20 pointer-events-none flex flex-col items-center justify-between p-6">
-        
-        <!-- Cabecera -->
-        <div class="bg-gray-950/85 border border-cyan-500/40 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.3)] text-center pointer-events-auto">
-            <h1 class="text-xs font-bold text-cyan-300 uppercase tracking-wider">Visor AR - Big Data</h1>
-            <p class="text-[10px] text-gray-300 mt-0.5">Apunta la cámara hacia el marcador <strong>Hiro</strong></p>
-        </div>
+    <!-- Video de la cámara a pantalla completa -->
+    <video id="webcam" autoplay playsinline muted></video>
 
-        <!-- Marco Central de Enfoque -->
-        <div class="w-60 h-60 border-2 border-dashed border-cyan-400/60 rounded-3xl flex items-center justify-center bg-cyan-950/10 backdrop-blur-[1px] relative">
-            <div class="w-4 h-4 border-t-2 border-l-2 border-cyan-400 absolute top-3 left-3"></div>
-            <div class="w-4 h-4 border-t-2 border-r-2 border-cyan-400 absolute top-3 right-3"></div>
-            <div class="w-4 h-4 border-b-2 border-l-2 border-cyan-400 absolute bottom-3 left-3"></div>
-            <div class="w-4 h-4 border-b-2 border-r-2 border-cyan-400 absolute bottom-3 right-3"></div>
-            <span class="text-[10px] text-cyan-300 uppercase tracking-widest bg-black/70 px-3 py-1 rounded-full border border-cyan-500/30">Buscando marcador...</span>
-        </div>
+    <!-- Lienzo 3D superpuesto -->
+    <div id="canvas-container"></div>
 
-        <!-- Pie de página -->
-        <div class="text-[10px] text-gray-400 bg-black/70 px-4 py-1.5 rounded-full border border-gray-800 pointer-events-auto">
-            Sistema activo • ISFT 182
+    <!-- Pantalla de inicio para otorgar permisos de cámara obligatorios -->
+    <div id="permission-screen" class="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+        <div class="max-w-xs w-full bg-slate-900 border border-cyan-500/40 rounded-2xl p-6 shadow-2xl">
+            <div class="w-14 h-14 bg-cyan-500/10 border border-cyan-500/30 rounded-xl mx-auto flex items-center justify-center text-cyan-400 text-2xl mb-4">
+                📷
+            </div>
+            <h2 class="text-white font-bold text-base mb-2">Activar Cámara</h2>
+            <p class="text-slate-400 text-xs mb-6">Presiona el botón para iniciar la experiencia interactiva de Realidad Aumentada.</p>
+            <button id="start-btn" class="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-xl text-sm shadow-lg transition-all cursor-pointer">
+                Iniciar Cámara
+            </button>
+            <p id="error-msg" class="text-red-400 text-xs mt-3 hidden"></p>
         </div>
     </div>
 
-    <!-- Escena AR.js -->
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;" vr-mode-ui="enabled: false" renderer="logarithmicDepthBuffer: true;">
-        
-        <!-- Marcador Hiro -->
-        <a-marker preset="hiro">
-            
-            <!-- Contenedor 3D de la Maqueta -->
-            <a-entity position="0 0.5 0">
-                <!-- Base de la maqueta -->
-                <a-box position="0 0.2 0" depth="1.5" height="0.3" width="1.5" color="#0f172a" material="metalness: 0.8; roughness: 0.2; emissive: #0044aa; emissiveIntensity: 0.4;"></a-box>
+    <!-- Controles flotantes inferiores -->
+    <div class="absolute bottom-6 left-0 right-0 z-20 flex justify-center gap-3 px-4">
+        <button onclick="toggleRotation()" class="px-4 py-2 bg-slate-900/80 hover:bg-slate-800 border border-cyan-500/40 rounded-xl text-xs text-cyan-300 font-medium backdrop-blur cursor-pointer">
+            🔄 Pausar / Girar
+        </button>
+        <button onclick="resetView()" class="px-4 py-2 bg-slate-900/80 hover:bg-slate-800 border border-cyan-500/40 rounded-xl text-xs text-cyan-300 font-medium backdrop-blur cursor-pointer">
+            🎯 Centrar
+        </button>
+    </div>
+
+    <!-- Lógica de la aplicación -->
+    <script>
+        const video = document.getElementById('webcam');
+        const permissionScreen = document.getElementById('permission-screen');
+        const startBtn = document.getElementById('start-btn');
+        const errorMsg = document.getElementById('error-msg');
+
+        let scene, camera, renderer, maquetaGroup;
+        let isRotating = true;
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                errorMsg.classList.add('hidden');
                 
-                <!-- Servidores / Torres de datos -->
-                <a-box position="-0.4 0.6 -0.4" depth="0.3" height="0.8" width="0.3" color="#00ffff"></a-box>
-                <a-box position="0.4 0.6 -0.4" depth="0.3" height="0.8" width="0.3" color="#00ffff"></a-box>
-                <a-box position="-0.4 0.6 0.4" depth="0.3" height="0.8" width="0.3" color="#3b82f6"></a-box>
-                <a-box position="0.4 0.6 0.4" depth="0.3" height="0.8" width="0.3" color="#3b82f6"></a-box>
+                // Solicitar la cámara trasera del celular
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                
+                video.srcObject = stream;
+                
+                // Ocultar pantalla de permisos
+                permissionScreen.style.opacity = '0';
+                setTimeout(() => permissionScreen.style.display = 'none', 300);
 
-                <!-- Núcleo de Esfera Central Holográfica (Big Data) -->
-                <a-sphere position="0 1.2 0" radius="0.45" color="#00ffff" material="wireframe: true; emissive: #00ffff; emissiveIntensity: 0.9;" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear;"></a-sphere>
+                initThreeJS();
+            } catch (err) {
+                console.error(err);
+                errorMsg.textContent = "No se pudo acceder a la cámara. Verifica los permisos o usa HTTPS / Localhost.";
+                errorMsg.classList.remove('hidden');
+            }
+        });
 
-                <!-- Anillo orbital animado -->
-                <a-torus position="0 1.2 0" radius="0.7" radius-tubular="0.015" rotation="65 0 0" color="#3b82f6" material="emissive: #3b82f6; emissiveIntensity: 0.8;" animation="property: rotation; to: 65 360 0; loop: true; dur: 5000; easing: linear;"></a-torus>
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
 
-                <!-- Texto flotante -->
-                <a-text value="BIG DATA + RA" position="-0.8 1.9 0" scale="0.6 0.6 0.6" color="#00ffff"></a-text>
-            </a-entity>
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 4);
+            camera.lookAt(0, 0, 0);
 
-        </a-marker>
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
 
-        <!-- Cámara -->
-        <a-entity camera></a-entity>
-    </a-scene>
+            // Luz ambiental y direccional
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+            scene.add(ambientLight);
 
+            const pointLight = new THREE.PointLight(0x00ffff, 3, 30);
+            pointLight.position.set(0, 4, 2);
+            scene.add(pointLight);
+
+            // Grupo principal de la maqueta 3D
+            maquetaGroup = new THREE.Group();
+            scene.add(maquetaGroup);
+
+            // 1. Plataforma base
+            const baseGeo = new THREE.BoxGeometry(2.2, 0.2, 2.2);
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 });
+            const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+            maquetaGroup.add(baseMesh);
+
+            // 2. Torres de servidores (Big Data)
+            const serverMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x0088ff, emissiveIntensity: 0.5 });
+            for (let i = -0.6; i <= 0.6; i += 1.2) {
+                for (let j = -0.6; j <= 0.6; j += 1.2) {
+                    const sGeo = new THREE.BoxGeometry(0.4, 0.8, 0.4);
+                    const server = new THREE.Mesh(sGeo, serverMat);
+                    server.position.set(i, 0.5, j);
+                    maquetaGroup.add(server);
+                }
+            }
+
+            // 3. Esfera central holográfica
+            const sphereGeo = new THREE.SphereGeometry(0.5, 32, 32);
+            const sphereMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.8, wireframe: true });
+            const sphereMesh = new THREE.Mesh(sphereGeo, sphereMat);
+            sphereMesh.position.set(0, 1.2, 0);
+            maquetaGroup.add(sphereMesh);
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isRotating && maquetaGroup) {
+                maquetaGroup.rotation.y += 0.005;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function toggleRotation() {
+            isRotating = !isRotating;
+        }
+
+        function resetView() {
+            if (maquetaGroup) {
+                maquetaGroup.rotation.set(0, 0, 0);
+                isRotating = true;
+            }
+        }
+    </script>
 </body>
 </html>
