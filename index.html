@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Big Data + RA</title>
+    <title>Big Data + RA - Imagen 3D</title>
     <!-- Three.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -15,7 +15,6 @@
             background: #000; 
             font-family: system-ui, sans-serif; 
         }
-        /* Video de la cámara a pantalla completa */
         #video { 
             position: fixed; 
             top: 0; 
@@ -25,7 +24,6 @@
             object-fit: cover; 
             z-index: 1; 
         }
-        /* Canvas para los gráficos 3D */
         #canvas { 
             position: fixed; 
             top: 0; 
@@ -35,7 +33,6 @@
             z-index: 2; 
             pointer-events: none; 
         }
-        /* Pantalla obligatoria de toque (Requerido por navegadores móviles) */
         #overlay-tap { 
             position: fixed; 
             inset: 0; 
@@ -70,59 +67,51 @@
     <!-- Canvas para los gráficos 3D -->
     <canvas id="canvas"></canvas>
 
-    <!-- Pantalla de toque obligatoria (evita el bloqueo del navegador) -->
+    <!-- Pantalla de toque obligatoria -->
     <div id="overlay-tap">
         <div class="tap-box">
-            <div style="font-size: 48px; margin-bottom: 20px;">📷</div>
-            <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #22d3ee;">Activar Cámara</h2>
-            <p style="font-size: 14px; color: #94a3b8; line-height: 1.6;">Toca en cualquier lugar para iniciar la cámara y visualizar la experiencia interactiva de Big Data.</p>
+            <div style="font-size: 48px; margin-bottom: 20px;">🌐</div>
+            <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #22d3ee;">Cargar Imagen 3D</h2>
+            <p style="font-size: 14px; color: #94a3b8; line-height: 1.6;">Toca en cualquier lugar para encender la cámara y proyectar la maqueta de Big Data.</p>
         </div>
     </div>
 
     <script>
         const overlay = document.getElementById('overlay-tap');
         const video = document.getElementById('video');
-        let renderer, scene, camera, techMesh;
+        let renderer, scene, camera, imageMesh;
 
-        // Esta función se ejecuta al tocar la pantalla
         overlay.addEventListener('click', async () => {
             try {
-                // 1. Solicitar acceso a la cámara trasera preferentemente
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
-                        facingMode: { ideal: 'environment' }, // Intenta usar la cámara trasera
+                        facingMode: { ideal: 'environment' }, 
                         width: { ideal: 1280 }, 
                         height: { ideal: 720 } 
                     },
                     audio: false
                 });
                 
-                // 2. Asignar el stream de video al elemento <video>
                 video.srcObject = stream;
                 
-                // 3. Ocultar la pantalla de toque
                 overlay.style.opacity = '0';
                 setTimeout(() => {
                     overlay.style.display = 'none';
                 }, 500);
 
-                // 4. Iniciar el entorno 3D
                 initThreeJS();
             } catch (err) {
                 console.error("Error al acceder a la cámara:", err);
-                alert("No se pudo acceder a la cámara. Asegúrate de abrir esta página mediante HTTPS (por ejemplo, usando GitHub Pages).");
+                alert("No se pudo acceder a la cámara. Asegúrate de usar HTTPS.");
             }
         });
 
         function initThreeJS() {
-            // Crear la escena
             scene = new THREE.Scene();
             
-            // Crear la cámara
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 3.5;
+            camera.position.z = 3.2;
 
-            // Configurar el renderizador transparente sobre el video
             renderer = new THREE.WebGLRenderer({ 
                 canvas: document.getElementById('canvas'), 
                 alpha: true, 
@@ -131,22 +120,39 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-            // Añadir luz
             const light = new THREE.AmbientLight(0xffffff, 1.5);
             scene.add(light);
 
-            // Crear un objeto 3D con estilo tecnológico
-            const geometry = new THREE.BoxGeometry(2.0, 1.2, 0.2);
-            const material = new THREE.MeshStandardMaterial({ 
-                color: 0x00ffff, 
-                wireframe: true,
-                emissive: 0x00ffff,
-                emissiveIntensity: 0.5
-            });
-            techMesh = new THREE.Mesh(geometry, material);
-            scene.add(techMesh);
+            // Cargar tu imagen como textura 3D
+            const textureLoader = new THREE.TextureLoader();
+            
+            // Reemplaza 'maqueta.jpg' por el nombre exacto de la imagen que descargues de la maqueta y guardes en tu carpeta
+            const imageFileName = 'maqueta.jpg'; 
 
-            // Manejar el cambio de tamaño de ventana/orientación móvil
+            textureLoader.load(
+                imageFileName, 
+                (texture) => {
+                    // Proporción basada en las dimensiones de tu imagen
+                    const geometry = new THREE.PlaneGeometry(3.0, 2.0);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        map: texture, 
+                        side: THREE.DoubleSide,
+                        transparent: true
+                    });
+                    imageMesh = new THREE.Mesh(geometry, material);
+                    scene.add(imageMesh);
+                },
+                undefined,
+                (error) => {
+                    console.warn("No se encontró la imagen local, cargando respaldo geométrico.");
+                    // Respaldo por si no encuentra el archivo local de inmediato
+                    const geometry = new THREE.PlaneGeometry(2.6, 1.6);
+                    const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+                    imageMesh = new THREE.Mesh(geometry, material);
+                    scene.add(imageMesh);
+                }
+            );
+
             window.addEventListener('resize', onWindowResize);
             animate();
         }
@@ -154,10 +160,10 @@
         function animate() {
             requestAnimationFrame(animate);
             
-            // Animación de rotación del objeto 3D
-            if (techMesh) {
-                techMesh.rotation.y += 0.006;
-                techMesh.rotation.x = Math.sin(Date.now() * 0.001) * 0.1;
+            if (imageMesh) {
+                // Sutil efecto de rotación flotante interactiva
+                imageMesh.rotation.y += 0.003;
+                imageMesh.rotation.x = Math.sin(Date.now() * 0.001) * 0.08;
             }
             
             renderer.render(scene, camera);
