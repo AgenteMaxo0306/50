@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Big Data + RA - Visor 3D</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Big Data + RA - Visor Directo</title>
     <!-- Three.js para gráficos 3D -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -19,7 +17,7 @@
             background: #000; 
             font-family: system-ui, sans-serif; 
         }
-        /* Contenedor absoluto para centrar la cámara perfectamente */
+        /* Contenedor de la cámara a pantalla completa real */
         #camera-wrapper {
             position: fixed;
             top: 0;
@@ -54,54 +52,22 @@
 </head>
 <body>
 
-    <!-- Video de la cámara perfectamente centrado a pantalla completa -->
+    <!-- Video de la cámara -->
     <div id="camera-wrapper">
         <video id="webcam" autoplay playsinline muted></video>
     </div>
 
-    <!-- Lienzo 3D superpuesto -->
+    <!-- Lienzo 3D -->
     <div id="canvas-container"></div>
 
-    <!-- Pantalla de Permisos Inicial -->
-    <div id="permission-screen" style="position: fixed; inset: 0; z-index: 50; background: #030712; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center;">
-        <div style="max-width: 320px; width: 100%; background: #0f172a; border: 1px solid rgba(6,182,212,0.4); border-radius: 16px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
-            <div style="width: 56px; height: 56px; background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); border-radius: 12px; margin: 0 auto 16px auto; display: flex; align-items: center; justify-content: center; font-size: 24px;">
-                📷
-            </div>
-            <h2 style="color: white; font-weight: bold; font-size: 16px; margin-bottom: 8px;">Activar Cámara</h2>
-            <p style="color: #94a3b8; font-size: 12px; margin-bottom: 24px;">Presiona el botón para iniciar la experiencia de Realidad Aumentada.</p>
-            <button id="start-btn" type="button" style="width: 100%; padding: 12px; background: #0284c7; color: white; font-weight: 600; border-radius: 12px; font-size: 14px; border: none; cursor: pointer;">
-                Iniciar Cámara
-            </button>
-            <p id="error-msg" style="color: #f87171; font-size: 12px; margin-top: 12px; display: none;"></p>
-        </div>
-    </div>
-
-    <!-- Controles flotantes inferiores (usando botones limpios sin enlaces) -->
-    <div style="position: fixed; bottom: 24px; left: 0; right: 0; z-index: 20; display: flex; justify-content: center; gap: 12px; padding: 0 16px;">
-        <button type="button" onclick="toggleRotation()" style="padding: 8px 16px; background: rgba(15,23,42,0.85); border: 1px solid rgba(6,182,212,0.4); border-radius: 12px; font-size: 12px; color: #22d3ee; backdrop-filter: blur(4px); cursor: pointer;">
-            🔄 Girar / Pausar
-        </button>
-        <button type="button" onclick="resetView()" style="padding: 8px 16px; background: rgba(15,23,42,0.85); border: 1px solid rgba(6,182,212,0.4); border-radius: 12px; font-size: 12px; color: #22d3ee; backdrop-filter: blur(4px); cursor: pointer;">
-            🎯 Centrar Vista
-        </button>
-    </div>
-
-    <!-- Script de lógica -->
+    <!-- Script para iniciar la cámara automáticamente -->
     <script>
         const video = document.getElementById('webcam');
-        const permissionScreen = document.getElementById('permission-screen');
-        const startBtn = document.getElementById('start-btn');
-        const errorMsg = document.getElementById('error-msg');
+        let scene, camera, renderer, holoMesh;
 
-        let scene, camera, renderer, maquetaGroup;
-        let isRotating = true;
-
-        startBtn.addEventListener('click', async () => {
+        // Iniciar la cámara de inmediato al cargar la página
+        async function startCamera() {
             try {
-                errorMsg.style.display = 'none';
-                
-                // Forzar uso de la cámara trasera con resolución ideal para móviles
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: { ideal: 'environment' },
@@ -110,72 +76,41 @@
                     },
                     audio: false
                 });
-                
                 video.srcObject = stream;
-                
-                // Ocultar pantalla de permisos de forma segura
-                permissionScreen.style.opacity = '0';
-                permissionScreen.style.transition = 'opacity 0.3s ease';
-                setTimeout(() => {
-                    permissionScreen.style.display = 'none';
-                }, 300);
-
                 initThreeJS();
             } catch (err) {
-                console.error(err);
-                errorMsg.textContent = "No se pudo acceder a la cámara. Verifica los permisos o asegúrate de usar HTTPS / Localhost.";
-                errorMsg.style.display = 'block';
+                console.error("Error al acceder a la cámara:", err);
+                alert("Por favor, permite el acceso a la cámara y asegúrate de usar HTTPS o Localhost.");
             }
-        });
+        }
 
         function initThreeJS() {
             const container = document.getElementById('canvas-container');
 
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 2, 4);
-            camera.lookAt(0, 0, 0);
+            camera.position.set(0, 0, 4);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             container.appendChild(renderer.domElement);
 
-            // Iluminación
-            const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+            // Luz ambiental
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
             scene.add(ambientLight);
 
-            const pointLight = new THREE.PointLight(0x00ffff, 3, 30);
-            pointLight.position.set(0, 4, 2);
-            scene.add(pointLight);
-
-            // Grupo 3D de la Maqueta
-            maquetaGroup = new THREE.Group();
-            scene.add(maquetaGroup);
-
-            // Base
-            const baseGeo = new THREE.BoxGeometry(2.2, 0.2, 2.2);
-            const baseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 });
-            const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-            maquetaGroup.add(baseMesh);
-
-            // Torres de servidores
-            const serverMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x0088ff, emissiveIntensity: 0.5 });
-            for (let i = -0.6; i <= 0.6; i += 1.2) {
-                for (let j = -0.6; j <= 0.6; j += 1.2) {
-                    const sGeo = new THREE.BoxGeometry(0.4, 0.8, 0.4);
-                    const server = new THREE.Mesh(sGeo, serverMat);
-                    server.position.set(i, 0.5, j);
-                    maquetaGroup.add(server);
-                }
-            }
-
-            // Esfera central holográfica
-            const sphereGeo = new THREE.SphereGeometry(0.5, 32, 32);
-            const sphereMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.8, wireframe: true });
-            const sphereMesh = new THREE.Mesh(sphereGeo, sphereMat);
-            sphereMesh.position.set(0, 1.2, 0);
-            maquetaGroup.add(sphereMesh);
+            // Crear un plano holográfico tecnológico interactivo (estilo interfaz Big Data)
+            const geometry = new THREE.PlaneGeometry(3.2, 2.0);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0x00ffff, 
+                wireframe: true,
+                transparent: true,
+                opacity: 0.7
+            });
+            
+            holoMesh = new THREE.Mesh(geometry, material);
+            scene.add(holoMesh);
 
             window.addEventListener('resize', onWindowResize);
             animate();
@@ -184,8 +119,8 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            if (isRotating && maquetaGroup) {
-                maquetaGroup.rotation.y += 0.005;
+            if (holoMesh) {
+                holoMesh.rotation.y += 0.005; // Rotación suave flotante
             }
 
             renderer.render(scene, camera);
@@ -197,16 +132,8 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function toggleRotation() {
-            isRotating = !isRotating;
-        }
-
-        function resetView() {
-            if (maquetaGroup) {
-                maquetaGroup.rotation.set(0, 0, 0);
-                isRotating = true;
-            }
-        }
+        // Ejecutar al cargar
+        window.addEventListener('DOMContentLoaded', startCamera);
     </script>
 </body>
 </html>
