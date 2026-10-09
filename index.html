@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Big Data + Realidad Aumentada - Visor 3D</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Three.js para renderizado 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #030712; font-family: system-ui, sans-serif; }
+        canvas { display: block; }
+    </style>
+</head>
+<body class="text-white h-screen w-screen flex flex-col justify-between select-none">
+
+    <!-- Vista de la Cámara -->
+    <div id="camera-container" class="absolute inset-0 z-0 overflow-hidden bg-black flex items-center justify-center">
+        <video id="webcam" autoplay playsinline muted class="absolute min-w-full min-h-full object-cover transform -scale-x-100"></video>
+        <!-- Overlay de Guía / Imagen de Referencia -->
+        <div id="target-overlay" class="absolute inset-10 border-2 border-cyan-500/40 rounded-2xl pointer-events-none flex flex-col items-center justify-center bg-cyan-950/10 backdrop-blur-[1px] transition-all duration-300">
+            <div class="absolute top-4 bg-black/60 px-4 py-1.5 rounded-full border border-cyan-500/30 text-xs text-cyan-300 tracking-wider uppercase flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                Apunta hacia la imagen de referencia
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor del Canvas 3D (Se superpone a la cámara) -->
+    <div id="canvas-3d-container" class="absolute inset-0 z-10 pointer-events-none"></div>
+
+    <!-- Interfaz Superior -->
+    <header class="relative z-20 p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-cyan-600/30 border border-cyan-400 flex items-center justify-center text-cyan-300 font-bold text-sm shadow-[0_0_15px_rgba(6,182,212,0.5)]">AR</div>
+            <div>
+                <h1 class="text-sm font-bold tracking-wide text-cyan-200">BIG DATA + RA</h1>
+                <p class="text-[10px] text-cyan-400/70">Visor Holográfico Interactivo</p>
+            </div>
+        </div>
+        <div id="status-badge" class="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-medium flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            Iniciando cámara...
+        </div>
+    </header>
+
+    <!-- Pantalla de Inicio / Permisos -->
+    <div id="permission-screen" class="absolute inset-0 z-50 bg-gray-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+        <div class="max-w-md w-full bg-gray-900 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_30px_rgba(6,182,212,0.15)]">
+            <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-500/40 rounded-2xl mx-auto flex items-center justify-center text-cyan-400 text-2xl mb-4 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                📷
+            </div>
+            <h2 class="text-lg font-bold text-white mb-2">Activar Visor de Realidad Aumentada</h2>
+            <p class="text-xs text-gray-400 mb-6">Para visualizar los modelos 3D y elementos interactivos sobre tu imagen, necesitamos acceso a la cámara de tu dispositivo.</p>
+            <button id="start-btn" class="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium rounded-xl text-sm transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] cursor-pointer">
+                Iniciar Experiencia AR
+            </button>
+            <p id="error-msg" class="text-xs text-red-400 mt-3 hidden"></p>
+        </div>
+    </div>
+
+    <!-- Interfaz Inferior -->
+    <footer class="relative z-20 p-4 flex flex-col gap-3 bg-gradient-to-t from-black/90 to-transparent">
+        <div class="flex gap-2 justify-center">
+            <button onclick="toggleRotation()" class="px-4 py-2 bg-gray-900/80 hover:bg-gray-800 border border-cyan-500/40 rounded-xl text-xs text-cyan-300 font-medium transition-all backdrop-blur-sm cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                🔄 Pausar / Girar 3D
+            </button>
+            <button onclick="resetCameraView()" class="px-4 py-2 bg-gray-900/80 hover:bg-gray-800 border border-cyan-500/40 rounded-xl text-xs text-cyan-300 font-medium transition-all backdrop-blur-sm cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                🎯 Centrar Holograma
+            </button>
+        </div>
+        <div class="text-center text-[10px] text-gray-400">
+            Un mundo de datos, infinitas posibilidades. Optimizado para web móvil y escritorio.
+        </div>
+    </footer>
+
+    <!-- Script de Lógica y Three.js -->
+    <script>
+        const video = document.getElementById('webcam');
+        const permissionScreen = document.getElementById('permission-screen');
+        const startBtn = document.getElementById('start-btn');
+        const errorMsg = document.getElementById('error-msg');
+        const statusBadge = document.getElementById('status-badge');
+
+        let scene, camera, renderer, holoGroup;
+        let isRotating = true;
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                errorMsg.classList.add('hidden');
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                video.srcObject = stream;
+                
+                // Ocultar pantalla de permisos
+                permissionScreen.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => permissionScreen.style.display = 'none', 300);
+
+                // Actualizar estado
+                statusBadge.className = "px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-medium flex items-center gap-1.5";
+                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Cámara Activa (AR)';
+
+                initThreeJS();
+            } catch (err) {
+                console.error("Error al acceder a la cámara:", err);
+                errorMsg.textContent = "No se pudo acceder a la cámara. Revisa los permisos del navegador o verifica que estés usando HTTPS / Localhost.";
+                errorMsg.classList.remove('hidden');
+            }
+        });
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-3d-container');
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 6);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // Luz ambiental y direccional
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0x00ffff, 3, 50);
+            pointLight.position.set(0, 5, 2);
+            scene.add(pointLight);
+
+            // Grupo Principal 3D (Holograma Big Data)
+            holoGroup = new THREE.Group();
+            scene.add(holoGroup);
+
+            // 1. Núcleo central (Esfera Energética)
+            const coreGeometry = new THREE.SphereGeometry(0.8, 32, 32);
+            const coreMaterial = new THREE.MeshStandardMaterial({
+                color: 0x00ffff,
+                emissive: 0x0088ff,
+                emissiveIntensity: 0.8,
+                roughness: 0.2,
+                metalness: 0.8,
+                wireframe: true
+            });
+            const coreMesh = new THREE.Mesh(coreGeometry, coreMaterial);
+            holoGroup.add(coreMesh);
+
+            // 2. Anillos orbitales tecnológicos
+            const ringCount = 3;
+            for (let i = 0; i < ringCount; i++) {
+                const radius = 1.4 + (i * 0.5);
+                const ringGeo = new THREE.RingGeometry(radius - 0.05, radius, 64);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: i === 0 ? 0x00ffff : (i === 1 ? 0x3b82f6 : 0x8b5cf6),
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+                ringMesh.rotation.x = Math.PI / 2 + (i * 0.3);
+                ringGroupData.push({ mesh: ringMesh, speed: (i + 1) * 0.01 });
+                holoGroup.add(ringMesh);
+            }
+
+            // 3. Cubos satélite flotantes (Servidores de datos)
+            const boxGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+            const boxMat = new THREE.MeshStandardMaterial({
+                color: 0x00ffcc,
+                emissive: 0x00ffcc,
+                emissiveIntensity: 0.5
+            });
+
+            for (let i = 0; i < 6; i++) {
+                const cube = new THREE.Mesh(boxGeo, boxMat);
+                const angle = (i / 6) * Math.PI * 2;
+                cube.position.set(Math.cos(angle) * 2.2, Math.sin(angle) * 0.5, Math.sin(angle) * 2.2);
+                holoGroup.add(cube);
+            }
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        const ringGroupData = [];
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isRotating && holoGroup) {
+                holoGroup.rotation.y += 0.005;
+            }
+
+            ringGroupData.forEach((item) => {
+                item.mesh.rotation.z += item.speed;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function toggleRotation() {
+            isRotating = !isRotating;
+        }
+
+        function resetCameraView() {
+            if (holoGroup) {
+                holoGroup.rotation.set(0, 0, 0);
+                isRotating = true;
+            }
+        }
+    </script>
+</body>
+</html>
