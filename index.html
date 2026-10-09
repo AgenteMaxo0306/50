@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Big Data + RA - Imagen 3D</title>
+    <title>Big Data + RA - Maqueta 3D</title>
     <!-- Three.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -71,8 +71,8 @@
     <div id="overlay-tap">
         <div class="tap-box">
             <div style="font-size: 48px; margin-bottom: 20px;">🌐</div>
-            <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #22d3ee;">Cargar Imagen 3D</h2>
-            <p style="font-size: 14px; color: #94a3b8; line-height: 1.6;">Toca en cualquier lugar para encender la cámara y proyectar la maqueta de Big Data.</p>
+            <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #22d3ee;">Activar Experiencia 3D</h2>
+            <p style="font-size: 14px; color: #94a3b8; line-height: 1.6;">Toca en cualquier lugar para iniciar la cámara y proyectar tu maqueta.</p>
         </div>
     </div>
 
@@ -110,7 +110,7 @@
             scene = new THREE.Scene();
             
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 3.2;
+            camera.position.z = 3.0;
 
             renderer = new THREE.WebGLRenderer({ 
                 canvas: document.getElementById('canvas'), 
@@ -123,17 +123,13 @@
             const light = new THREE.AmbientLight(0xffffff, 1.5);
             scene.add(light);
 
-            // Cargar tu imagen como textura 3D
+            // Carga directa de la imagen 'maqueta.jpg' que está en tu repositorio
             const textureLoader = new THREE.TextureLoader();
             
-            // Reemplaza 'maqueta.jpg' por el nombre exacto de la imagen que descargues de la maqueta y guardes en tu carpeta
-            const imageFileName = 'maqueta.jpg'; 
-
             textureLoader.load(
-                imageFileName, 
+                'maqueta.jpg', 
                 (texture) => {
-                    // Proporción basada en las dimensiones de tu imagen
-                    const geometry = new THREE.PlaneGeometry(3.0, 2.0);
+                    const geometry = new THREE.PlaneGeometry(3.2, 2.0);
                     const material = new THREE.MeshBasicMaterial({ 
                         map: texture, 
                         side: THREE.DoubleSide,
@@ -144,8 +140,8 @@
                 },
                 undefined,
                 (error) => {
-                    console.warn("No se encontró la imagen local, cargando respaldo geométrico.");
-                    // Respaldo por si no encuentra el archivo local de inmediato
+                    console.error("Error al cargar la imagen:", error);
+                    // Respaldo por si hay algún problema con la ruta
                     const geometry = new THREE.PlaneGeometry(2.6, 1.6);
                     const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
                     imageMesh = new THREE.Mesh(geometry, material);
@@ -161,9 +157,9 @@
             requestAnimationFrame(animate);
             
             if (imageMesh) {
-                // Sutil efecto de rotación flotante interactiva
+                // Sutil rotación y efecto flotante tridimensional
                 imageMesh.rotation.y += 0.003;
-                imageMesh.rotation.x = Math.sin(Date.now() * 0.001) * 0.08;
+                imageMesh.rotation.x = Math.sin(Date.now() * 0.001) * 0.06;
             }
             
             renderer.render(scene, camera);
